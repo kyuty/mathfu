@@ -16,6 +16,10 @@
 #ifndef MATHFU_MATRIX_H_
 #define MATHFU_MATRIX_H_
 
+#include "mathfu_no_warnings.h"
+
+DISABLE_WARNING
+
 #include "mathfu/utilities.h"
 #include "mathfu/vector.h"
 
@@ -161,6 +165,8 @@ template <>
 class Constants<float> {
  public:
   /// Effective uniform scale limit: ~(1/215)^3
+  /// 有效 uniform scale 限制
+  /// 有效均匀尺度极限
   static float GetDeterminantThreshold() { return 1e-7f; }
 };
 
@@ -747,6 +753,10 @@ class Matrix {
 
   /// @brief Converts a Matrix<float, 4> into an AffineTransform.
   ///
+  /// 仿射变化，4x4 矩阵 -> 4x3 矩阵
+  ///    4行4列矩阵 变成了 4行3列矩阵
+  ///    4x4 矩阵，最后一列 drop 掉之后，然后从列方向遍历，生成新的 4x3 矩阵
+  ///
   /// @param m A Matrix<float, 4> reference to be converted into an
   /// AffineTransform by dropping the fixed 'w' row.
   ///
@@ -813,11 +823,11 @@ class Matrix {
 
   /// @brief Create a 4x4 perspective Matrix.
   ///
-  /// @param fovy Field of view.
+  /// @param fovy Field of view. radians
   /// @param aspect Aspect ratio.
   /// @param znear Near plane location.
   /// @param zfar Far plane location.
-  /// @param handedness 1.0f for RH, -1.0f for LH
+  /// @param handedness 1.0f for RH, -1.0f for LH. default: right hand
   /// @return 4x4 perspective Matrix.
   static inline Matrix<T, 4, 4> Perspective(T fovy, T aspect, T znear, T zfar,
                                             T handedness = 1) {
@@ -869,10 +879,14 @@ class Matrix {
 
   /// @brief Get the 3D position in object space from a window coordinate.
   ///
+  /// 这里没有 camera 矩阵
+  ///
   /// @param window_coord The window coordinate. The z value is for depth.
   /// A window coordinate on the near plane will have 0 as the z value.
   /// And a window coordinate on the far plane will have 1 as the z value.
   /// z value should be with in [0, 1] here.
+  /// 0: near plane
+  /// 1: far plane
   /// @param model_view The Model View matrix.
   /// @param projection The projection matrix.
   /// @param window_width Width of the window.
@@ -1272,6 +1286,7 @@ inline bool InverseHelper(const Matrix<T, Rows, Cols>& m,
 template <bool check_invertible, class T>
 inline bool InverseHelper(const Matrix<T, 2, 2>& m,
                           Matrix<T, 2, 2>* const inverse, T det_thresh) {
+  // 行列式 != 0
   T determinant = m[0] * m[3] - m[1] * m[2];
   if (check_invertible && fabs(determinant) < det_thresh) {
     return false;
@@ -1290,12 +1305,22 @@ template <bool check_invertible, class T>
 inline bool InverseHelper(const Matrix<T, 3, 3>& m,
                           Matrix<T, 3, 3>* const inverse, T det_thresh) {
   // Find determinant of matrix.
-  T sub11 = m[4] * m[8] - m[5] * m[7], sub12 = -m[1] * m[8] + m[2] * m[7],
-    sub13 = m[1] * m[5] - m[2] * m[4];
-  T determinant = m[0] * sub11 + m[3] * sub12 + m[6] * sub13;
+  T d1 = m[0] * m[4] * m[8];
+  T d2 = m[8] * m[1] * m[3];
+  T d3 = m[1] * m[5] * m[6];
+  T d4 = m[5] * m[7] * m[0];
+  T d5 = m[2] * m[3] * m[7];
+  T d6 = m[2] * m[4] * m[6];
+  T d11 = d1 - d2;
+  T d22 = d3 - d4;
+  T d33 = d5 - d6;
+  T determinant = d11 + d22 + d33;
   if (check_invertible && fabs(determinant) < det_thresh) {
     return false;
   }
+  T sub11 = m[4] * m[8] - m[5] * m[7],
+    sub12 = -m[1] * m[8] + m[2] * m[7],
+    sub13 = m[1] * m[5] - m[2] * m[4];
   // Find determinants of 2x2 submatrices for the elements of the inverse.
   *inverse = Matrix<T, 3, 3>(
       sub11, sub12, sub13, m[6] * m[5] - m[3] * m[8], m[0] * m[8] - m[6] * m[2],
@@ -1422,9 +1447,12 @@ inline Matrix<T, 4, 4> PerspectiveHelper(T fovy, T aspect, T znear, T zfar,
   const T x = y / aspect;
   const T zdist = (znear - zfar);
   const T zfar_per_zdist = zfar / zdist;
-  return Matrix<T, 4, 4>(x, 0, 0, 0, 0, y, 0, 0, 0, 0,
-                         zfar_per_zdist * handedness, -1 * handedness, 0, 0,
-                         2.0f * znear * zfar_per_zdist, 0);
+  // clang-format off
+  return Matrix<T, 4, 4>(x, 0, 0, 0,
+                         0, y, 0, 0,
+                         0, 0, zfar_per_zdist * handedness, -1 * handedness,
+                         0, 0, 2.0f * znear * zfar_per_zdist, 0);
+  // clang-format on
 }
 /// @endcond
 
@@ -1433,12 +1461,13 @@ inline Matrix<T, 4, 4> PerspectiveHelper(T fovy, T aspect, T znear, T zfar,
 template <class T>
 static inline Matrix<T, 4, 4> OrthoHelper(T left, T right, T bottom, T top,
                                           T znear, T zfar, T handedness) {
-  return Matrix<T, 4, 4>(static_cast<T>(2) / (right - left), 0, 0, 0, 0,
-                         static_cast<T>(2) / (top - bottom), 0, 0, 0, 0,
-                         -handedness * static_cast<T>(2) / (zfar - znear), 0,
-                         -(right + left) / (right - left),
-                         -(top + bottom) / (top - bottom),
+  // clang-format off
+  return Matrix<T, 4, 4>(static_cast<T>(2) / (right - left), 0, 0,
+                         0, 0, static_cast<T>(2) / (top - bottom), 0, 0,
+                         0, 0, -handedness * static_cast<T>(2) / (zfar - znear), 0,
+                         -(right + left) / (right - left), -(top + bottom) / (top - bottom),
                          -(zfar + znear) / (zfar - znear), static_cast<T>(1));
+  // clang-format on
 }
 /// @endcond
 
@@ -1609,5 +1638,7 @@ typedef Matrix<float, 4, 3> AffineTransform;
 #ifdef _MSC_VER
 #pragma warning(pop)
 #endif
+
+ENABLE_WARNING
 
 #endif  // MATHFU_MATRIX_H_

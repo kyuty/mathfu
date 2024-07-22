@@ -16,6 +16,10 @@
 #ifndef MATHFU_QUATERNION_H_
 #define MATHFU_QUATERNION_H_
 
+#include "mathfu_no_warnings.h"
+
+DISABLE_WARNING
+
 #ifdef _WIN32
 #if !defined(_USE_MATH_DEFINES)
 #define _USE_MATH_DEFINES  // For M_PI.
@@ -625,4 +629,7 @@ inline Quaternion<T> operator*(T s, const Quaternion<T>& q) {
 /// @}
 
 }  // namespace mathfu
+
+ENABLE_WARNING
+
 #endif  // MATHFU_QUATERNION_H_

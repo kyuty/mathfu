@@ -35,3 +35,5 @@ local.properties
 proguard-project.txt
 project.properties
 .DS_Store
+/cmake-build-debug/
+/.idea
