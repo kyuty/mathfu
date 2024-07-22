@@ -13,6 +13,10 @@
 * See the License for the specific language governing permissions and
 * limitations under the License.
 */
+#include "mathfu/mathfu_no_warnings.h"
+
+DISABLE_WARNING
+
 #include "mathfu/vector.h"
 #include "mathfu/constants.h"
 #include "mathfu/io.h"
@@ -965,3 +969,5 @@ int main(int argc, char** argv) {
   printf("%s (%s)\n", argv[0], MATHFU_BUILD_OPTIONS_STRING);
   return RUN_ALL_TESTS();
 }
+
+ENABLE_WARNING
