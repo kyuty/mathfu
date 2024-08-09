@@ -1423,6 +1423,8 @@ int main(int argc, char** argv) {
   using namespace mathfu;
   using Matrix4_4 = Matrix<float, 4, 4>;
   using Vector3 = Vector<float, 3>;
+  using Vector2 = Vector<float, 2>;
+  using Vector4 = Vector<float, 4>;
 
 
   {
@@ -1496,6 +1498,24 @@ int main(int argc, char** argv) {
       printVector3("outEuler = ", outEuler);
     }
 
+  }
+
+  {
+    Vector4 layoutPixel(0, 0, 488, 216); // view layout
+    float width = layoutPixel.z - layoutPixel.x;
+    float height = layoutPixel.w - layoutPixel.y;
+    float pixelToMeter = 0.001995f;
+
+    Matrix4_4 change = Matrix4_4::Identity();
+    offsetLeft(change, Vector3(width, height, 0.0f), Vector2(width, height), pixelToMeter);
+    scaleLeft(change, Vector3(0.5f, 0.5f, 1.0f), Vector3(0.0f, 0.0f, 0.0f));
+    printMat("change = ", change);
+
+    Matrix4_4 mat4 = get3DMatrixFromLayout(Vector2{1920.0f, 1080.0f}, layoutPixel, pixelToMeter, 10.0f);
+    anchorFromCenterToLeftTop(mat4);
+    mat4 = mat4 * change;
+    anchorFromLeftTopToCenter(mat4);
+    printMat("anchorFromLeftTopToCenter = ", mat4);
   }
 
   return RUN_ALL_TESTS();

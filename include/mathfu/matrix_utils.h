@@ -20,6 +20,13 @@ namespace mathfu {
   }
 
   template <class T>
+  inline void offsetLeft(Matrix<T, 4, 4> &m, const Vector<T, 3>& offsetPixel, const Vector<T, 2>& viewSize, float pixelToMeter) {
+    m.data_[3][0] += offsetPixel[0] / viewSize[0];
+    m.data_[3][1] -= offsetPixel[1] / viewSize[1];
+    m.data_[3][2] += offsetPixel[2] * pixelToMeter;
+  }
+
+  template <class T>
   inline void scaleLeft(Matrix<T, 4, 4> &m, const Vector<T, 3>& scale, const Vector<T, 3>& anchor) {
     Matrix<T, 4, 4> anchorMat = Matrix<T, 4, 4>::FromTranslationVector(Vector<T, 3>(anchor.x, -anchor.y, anchor.z));
     Matrix<T, 4, 4> unAnchorMat = Matrix<T, 4, 4>::FromTranslationVector(Vector<T, 3>(-anchor.x, anchor.y, -anchor.z));
@@ -95,6 +102,52 @@ namespace mathfu {
     //   //printVector3("outEuler = ", outEuler);
     // }
   }
+
+  /**
+   *
+   * @tparam T
+   * @param layerPixelSize .xy = w h
+   * @param layoutPixel .xyzw == left top right bottom
+   * @param pixelToMeters
+   * @return
+   */
+  template <class T>
+  inline Matrix<T, 4, 4> get3DMatrixFromLayout(Vector<T, 2> layerPixelSize, Vector<T, 4> layoutPixel, T pixelToMeters, T zPixel) {
+    Matrix<T, 4, 4> m = Matrix<T, 4, 4>::Identity();
+    auto baseScaleX = layerPixelSize.x * pixelToMeters;
+    auto baseScaleY = layerPixelSize.y * pixelToMeters;
+    Vector<T, 3> scale;
+    scale.x = 1.0f * baseScaleX * (layoutPixel.z - layoutPixel.x) / layerPixelSize.x;
+    scale.y = 1.0f * baseScaleY * (layoutPixel.w - layoutPixel.y) / layerPixelSize.y;
+    scale.z = 1.0f;
+    Vector<T, 3> trans;
+    trans.x = ((layoutPixel.x + layoutPixel.z) / 2.0f - layerPixelSize.x / 2.0f) * pixelToMeters;
+    trans.y = (-(layoutPixel.y + layoutPixel.w) / 2.0f + layerPixelSize.y / 2.0f) * pixelToMeters;
+    trans.z = zPixel * pixelToMeters;
+    Matrix<T, 4> transMatrix = Matrix<T, 4>::FromTranslationVector(trans);
+    Matrix<T, 4> scaleMatrix = Matrix<T, 4>::FromScaleVector(scale);
+    m = transMatrix * scaleMatrix;
+    return m;
+  }
+
+  template <class T>
+  inline void anchorFromCenterToLeftTop(Matrix<T, 4, 4> &m) {
+    Vector<T, 3> trans;
+    trans.x = -1.0f / 2.0f;
+    trans.y = 1.0f / 2.0f;
+    trans.z = 0.0f;
+    m = m * Matrix<T, 4>::FromTranslationVector(trans);
+  }
+
+  template <class T>
+  inline void anchorFromLeftTopToCenter(Matrix<T, 4, 4> &m) {
+    Vector<T, 3> trans;
+    trans.x = 1.0f / 2.0f;
+    trans.y = -1.0f / 2.0f;
+    trans.z = 0.0f;
+    m = m * Matrix<T, 4>::FromTranslationVector(trans);
+  }
+
 
 }
 
